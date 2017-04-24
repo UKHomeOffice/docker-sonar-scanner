@@ -8,7 +8,7 @@ Insert the snippet below after your build step in your .drone.yml, and copy the 
 
 ```
   sonar-scanner:
-    image: quay.io/ukhomeofficedigital/sonar-scanner:v0.0.2
+    image: quay.io/ukhomeofficedigital/sonar-scanner:v3.0.1
     when:
       event:
         - push
