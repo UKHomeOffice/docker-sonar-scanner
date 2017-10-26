@@ -5,7 +5,7 @@ ENV SONAR_SCANNER_OPTS="-Xmx512m -Dsonar.host.url=https://sonarqube.digital.home
 ENV PATH=/opt/sonar-scanner-${SONAR_SCANNER_VER}/bin:${PATH}
 
 RUN yum clean all && \
-    yum update -y && \
+    yum update -y  --exclude iputils* && \
     yum install -y wget curl unzip git && \
     yum clean all && \
     rpm --rebuilddb
