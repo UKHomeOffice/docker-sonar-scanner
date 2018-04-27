@@ -1,11 +1,11 @@
-FROM quay.io/ukhomeofficedigital/openjdk8:v1.8.0.131
+FROM quay.io/ukhomeofficedigital/openjdk8:v1.8.0.161
 
-ENV SONAR_SCANNER_VER=3.0.1.733
+ENV SONAR_SCANNER_VER=3.1.0.1141
 ENV SONAR_SCANNER_OPTS="-Xmx512m -Dsonar.host.url=https://sonarqube.digital.homeoffice.gov.uk/"
 ENV PATH=/opt/sonar-scanner-${SONAR_SCANNER_VER}/bin:${PATH}
 
 RUN yum clean all && \
-    yum update -y  --exclude iputils* && \
+    yum update -y && \
     yum install -y wget curl unzip git && \
     yum clean all && \
     rpm --rebuilddb
