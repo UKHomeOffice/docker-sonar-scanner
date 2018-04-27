@@ -5,8 +5,10 @@ pipeline:
       - DOCKER_HOST=tcp://172.17.0.1:2375
     commands:
       - docker build -t sonar-scanner:$${DRONE_COMMIT_SHA} .
+    when:
+      event: [push, tag]
 
-  image_to_quay:
+  image_sha_to_quay:
     image: docker:17.09.0-ce
     secrets:
       - docker_password
@@ -15,14 +17,25 @@ pipeline:
     commands:
       - docker login -u="ukhomeofficedigital+drone" -p=$${DOCKER_PASSWORD} quay.io
       - docker tag sonar-scanner:$${DRONE_COMMIT_SHA} quay.io/ukhomeofficedigital/sonar-scanner:$${DRONE_COMMIT_SHA}
-      - docker tag sonar-scanner:$${DRONE_COMMIT_SHA} quay.io/ukhomeofficedigital/sonar-scanner:latest
       - docker push quay.io/ukhomeofficedigital/sonar-scanner:$${DRONE_COMMIT_SHA}
+    when:
+      event: push
+
+  image_latest_to_quay:
+    image: docker:17.09.0-ce
+    secrets:
+      - docker_password
+    environment:
+      - DOCKER_HOST=tcp://172.17.0.1:2375
+    commands:
+      - docker login -u="ukhomeofficedigital+drone" -p=$${DOCKER_PASSWORD} quay.io
+      - docker tag sonar-scanner:$${DRONE_COMMIT_SHA} quay.io/ukhomeofficedigital/sonar-scanner:latest
       - docker push quay.io/ukhomeofficedigital/sonar-scanner:latest
     when:
       branch: master
       event: push
 
-  tagged_image_to_quay:
+  image_tag_to_quay:
     image: docker:17.09.0-ce
     secrets:
       - docker_password
