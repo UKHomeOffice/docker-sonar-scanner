@@ -6,9 +6,9 @@ pipeline:
     commands:
       - docker build -t sonar-scanner:$${DRONE_COMMIT_SHA} .
     when:
-      event: [push, pull_request]
+      event: [push, tag]
 
-  pull_request_to_quay:
+  image_sha_to_quay:
     image: docker:17.09.0-ce
     secrets:
       - docker_password
@@ -19,9 +19,9 @@ pipeline:
       - docker tag sonar-scanner:$${DRONE_COMMIT_SHA} quay.io/ukhomeofficedigital/sonar-scanner:$${DRONE_COMMIT_SHA}
       - docker push quay.io/ukhomeofficedigital/sonar-scanner:$${DRONE_COMMIT_SHA}
     when:
-      event: pull_request
+      event: push
 
-  image_to_quay:
+  image_latest_to_quay:
     image: docker:17.09.0-ce
     secrets:
       - docker_password
@@ -35,7 +35,7 @@ pipeline:
       branch: master
       event: push
 
-  tagged_image_to_quay:
+  image_tag_to_quay:
     image: docker:17.09.0-ce
     secrets:
       - docker_password
