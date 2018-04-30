@@ -22,4 +22,4 @@ RUN wget -O /tmp/sonar-scanner-cli-${SONAR_SCANNER_VER}.zip \
     nvm install ${NODE_VER} && \
     nvm use ${NODE_VER}
 
-ENTRYPOINT ["sonar-scanner"]
+ENTRYPOINT /bin/bash /opt/sonar-scanner-${SONAR_SCANNER_VER}/bin/sonar-scanner
