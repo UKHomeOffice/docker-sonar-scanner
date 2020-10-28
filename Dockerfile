@@ -5,7 +5,7 @@ ENV SONAR_SCANNER_OPTS="-Xmx512m -Dsonar.host.url=https://sonarqube.testing.acp.
 ENV PATH=/opt/sonar-scanner-${SONAR_SCANNER_VER}/bin:${PATH}
 
 RUN dnf clean all && \
-    dnf update -y --exclude filesystem* && \
+    dnf update -y \
     dnf install -y wget curl unzip git python3-pip && \
     dnf clean all && \
     rpm --rebuilddb
