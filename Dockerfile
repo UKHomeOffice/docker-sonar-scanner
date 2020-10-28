@@ -1,13 +1,13 @@
-FROM quay.io/ukhomeofficedigital/openjdk11:v11.0.5_10
+FROM quay.io/ukhomeofficedigital/openjdk11:v11.0.5_10_centos8
 
 ENV SONAR_SCANNER_VER=4.5.0.2216
-ENV SONAR_SCANNER_OPTS="-Xmx512m -Dsonar.host.url=https://sonarqube.digital.homeoffice.gov.uk/"
+ENV SONAR_SCANNER_OPTS="-Xmx512m -Dsonar.host.url=https://sonarqube.testing.acp.homeoffice.gov.uk/"
 ENV PATH=/opt/sonar-scanner-${SONAR_SCANNER_VER}/bin:${PATH}
 
-RUN yum clean all && \
-    yum update -y --exclude filesystem* && \
-    yum install -y wget curl unzip git python3-pip && \
-    yum clean all && \
+RUN dnf clean all && \
+    dnf update -y --exclude filesystem* && \
+    dnf install -y wget curl unzip git python3-pip && \
+    dnf clean all && \
     rpm --rebuilddb
 
 #for ansible plugins
