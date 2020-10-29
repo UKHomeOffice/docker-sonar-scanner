@@ -1,5 +1,4 @@
-FROM quay.io/ukhomeofficedigital/openjdk11:v11.0.5_10_centos8-rc2
-
+FROM quay.io/ukhomeofficedigital/openjdk11:v11.0.5_10_centos8-rc3
 ENV SONAR_SCANNER_VER=4.5.0.2216
 ENV SONAR_SCANNER_OPTS="-Xmx512m -Dsonar.host.url=https://sonarqube.testing.acp.homeoffice.gov.uk/"
 ENV PATH=/opt/sonar-scanner-${SONAR_SCANNER_VER}/bin:${PATH}
