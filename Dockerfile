@@ -9,7 +9,7 @@ ENV PATH=/opt/sonar-scanner-${SONAR_SCANNER_VER}/bin:${PATH}
   && dnf autoremove -y \
   && dnf update -y --exclude filesystem* && \
   && dnf clean all -y \
-  && dnf install -y wget curl unzip git python3-pip && \
+  && dnf install -y wget curl unzip git python3-pip \
   && rm -rf /var/cache/dnf
 
 
