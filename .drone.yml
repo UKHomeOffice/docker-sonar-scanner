@@ -10,6 +10,8 @@ pipeline:
 
   scan_image:
     image: quay.io/ukhomeofficedigital/anchore-submission:latest
+    environment:
+      - WHITELIST=CVE-2019-5827,CVE-2020-25636
     image_name: sonar-scanner:${DRONE_COMMIT_SHA}
     when:
       event: push
