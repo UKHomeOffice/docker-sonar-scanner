@@ -5,8 +5,7 @@ ENV PATH=/opt/sonar-scanner-${SONAR_SCANNER_VER}/bin:${PATH}
 
 ENV export LANG=en_US.UTF-8
 ENV export LANGUAGE=en_US.UTF-8
-RUN dnf set up langpacks-en glibc-all-langpacks -y
-
+RUN dnf reinstall dnf 
 
  RUN dnf clean all  \
   && dnf autoremove -y \
