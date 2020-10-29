@@ -3,7 +3,8 @@ ENV SONAR_SCANNER_VER=4.5.0.2216
 ENV SONAR_SCANNER_OPTS="-Xmx512m -Dsonar.host.url=https://sonarqube.testing.acp.homeoffice.gov.uk/"
 ENV PATH=/opt/sonar-scanner-${SONAR_SCANNER_VER}/bin:${PATH}
 
-RUN  dnf install glibc-langpack-en
+ RUN  dnf install glibc-langpack-en -y
+
  RUN dnf clean all  \
   && dnf install langpacks-en glibc-all-langpacks  defaulting to C.UTF-8 -y \
   && dnf autoremove -y \
