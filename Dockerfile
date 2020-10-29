@@ -5,6 +5,7 @@ ENV PATH=/opt/sonar-scanner-${SONAR_SCANNER_VER}/bin:${PATH}
 
 
  RUN dnf clean all  \
+  && dnf install langpacks-en glibc-all-langpacks -y
   && dnf autoremove -y \
   && dnf update -y --exclude filesystem*  \
   && dnf clean all -y \
