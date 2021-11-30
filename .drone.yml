@@ -1,57 +1,88 @@
-pipeline:
-  build_docker_image:
-    image: docker:18.09
-    environment:
-      - DOCKER_HOST=tcp://172.17.0.1:2375
-    commands:
-      - docker build -t sonar-scanner:$${DRONE_COMMIT_SHA} .
-    when:
-      event: [push, tag]
+---
+kind: pipeline
+name: default
+type: kubernetes
 
-  scan_image:
-    image: quay.io/ukhomeofficedigital/anchore-submission:latest
-    environment:
-      - WHITELIST=CVE-2019-5827,CVE-2020-25636
-    image_name: sonar-scanner:${DRONE_COMMIT_SHA}
-    when:
-      event: push
+platform:
+  os: linux
+  arch: amd64
 
-  image_sha_to_quay:
-    image: docker:18.09
-    secrets:
-      - docker_password
-    environment:
-      - DOCKER_HOST=tcp://172.17.0.1:2375
-    commands:
-      - docker login -u="ukhomeofficedigital+drone" -p=$${DOCKER_PASSWORD} quay.io
-      - docker tag sonar-scanner:$${DRONE_COMMIT_SHA} quay.io/ukhomeofficedigital/sonar-scanner:$${DRONE_COMMIT_SHA}
-      - docker push quay.io/ukhomeofficedigital/sonar-scanner:$${DRONE_COMMIT_SHA}
-    when:
-      event: push
+steps:
+- name: build_docker_image
+  pull: if-not-exists
+  image: 340268328991.dkr.ecr.eu-west-2.amazonaws.com/acp/dind
+  commands:
+  - n=0; while [ "$n" -lt 60 ] && [ ! docker stats --no-stream ]; do n=$(( n + 1 )); sleep 1; done
+  - docker build -t sonar-scanner:$${DRONE_COMMIT_SHA} .
+  when:
+    event:
+    - push
+    - tag
 
-  image_latest_to_quay:
-    image: docker:18.09
-    secrets:
-      - docker_password
-    environment:
-      - DOCKER_HOST=tcp://172.17.0.1:2375
-    commands:
-      - docker login -u="ukhomeofficedigital+drone" -p=$${DOCKER_PASSWORD} quay.io
-      - docker tag sonar-scanner:$${DRONE_COMMIT_SHA} quay.io/ukhomeofficedigital/sonar-scanner:latest
-      - docker push quay.io/ukhomeofficedigital/sonar-scanner:latest
-    when:
-      branch: master
-      event: push
+- name: scan_image
+  pull: if-not-exists
+  image: 340268328991.dkr.ecr.eu-west-2.amazonaws.com/acp/anchore-submission:latest
+  environment:
+    IMAGE_NAME: sonar-scanner:${DRONE_COMMIT_SHA}
+  when:
+    event:
+    - push
 
-  image_tag_to_quay:
-    image: docker:18.09
-    secrets:
-      - docker_password
-    environment:
-      - DOCKER_HOST=tcp://172.17.0.1:2375
-    commands:
-      - docker login -u="ukhomeofficedigital+drone" -p=$${DOCKER_PASSWORD} quay.io
-      - docker tag sonar-scanner:$${DRONE_COMMIT_SHA} quay.io/ukhomeofficedigital/sonar-scanner:$${DRONE_TAG}
-      - docker push quay.io/ukhomeofficedigital/sonar-scanner:$${DRONE_TAG}
-    when:
-      event: tag
+- name: image_sha_to_quay
+  pull: if-not-exists
+  image: plugins/docker
+  settings: 
+    registry: quay.io
+    repo: quay.io/ukhomeofficedigital/sonar-scanner
+    tags: ${DRONE_COMMIT_SHA}
+  environment:
+    DOCKER_PASSWORD:
+      from_secret: DOCKER_SECRET_2
+    DOCKER_USERNAME: ukhomeofficedigital+sonar_scanner
+  when:
+    event:
+    - push
+
+- name: image_latest_to_quay
+  pull: if-not-exists
+  image: plugins/docker
+  settings: 
+    registry: quay.io
+    repo: quay.io/ukhomeofficedigital/sonar-scanner
+    tags: latest
+  environment:
+    DOCKER_PASSWORD:
+      from_secret: DOCKER_SECRET_2
+    DOCKER_USERNAME: ukhomeofficedigital+sonar_scanner
+  when:
+    branch:
+    - master
+    event:
+    - push
+
+- name: image_tag_to_quay
+  pull: if-not-exists
+  image: plugins/docker
+  settings: 
+    registry: quay.io
+    repo: quay.io/ukhomeofficedigital/sonar-scanner
+    tags: ${DRONE_TAG}
+  environment:
+    DOCKER_PASSWORD:
+      from_secret: DOCKER_SECRET_2
+    DOCKER_USERNAME: ukhomeofficedigital+sonar_scanner
+  when:
+    event:
+    - tag
+
+services:
+- name: docker
+  image: 340268328991.dkr.ecr.eu-west-2.amazonaws.com/acp/dind
+
+- name: anchore-submission-server
+  image: 340268328991.dkr.ecr.eu-west-2.amazonaws.com/acp/anchore-submission:latest
+  pull: always
+  commands:
+    - /run.sh server
+
+...
