@@ -1,7 +1,7 @@
 
 FROM quay.io/ukhomeofficedigital/openjdk11:v11.0.5_11
 ENV SONAR_SCANNER_VER=4.6.2.2472
-ENV SONAR_SCANNER_OPTS="-Xmx512m -Dsonar.host.url=https://sonarqube.digital.homeoffice.gov.uk/"
+ENV SONAR_SCANNER_OPTS="-Xmx512m -Dsonar.host.url=https://sonarqube.digital.homeoffice.gov.uk/  -Dsonar.qualitygate.wait=true"
 ENV PATH=/opt/sonar-scanner-${SONAR_SCANNER_VER}/bin:${PATH}
 
 
