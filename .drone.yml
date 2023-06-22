@@ -7,82 +7,146 @@ platform:
   os: linux
   arch: amd64
 
+resources:
+  requests:
+    cpu: 1000
+    memory: 1024Mi
+
+environment:
+  OCI_REGISTRY: quay.io
+  OCI_IMAGE_REPO: ukhomeofficedigital/sonar-scanner
+  OCI_REPO_USERNAME: ukhomeofficedigital+sonar_scanner
+  SONAR_SCANNER_SHA512: b2c94c5c8bde1092c332421f8988fe7d709b09b6644f43c9af2a5a28d90f91656a8cda5cd7f920981225c602f00653e3ddd1ac5dba750da44d784e5736ea790d
+
 steps:
-- name: build_docker_image
-  pull: if-not-exists
-  image: 340268328991.dkr.ecr.eu-west-2.amazonaws.com/acp/dind
+- name: Increment Build Version
+  pull: Always
+  image: 340268328991.dkr.ecr.eu-west-2.amazonaws.com/acp/acp-ci-tools
+  resources:
+    limits:
+      cpu: 100
+      memory: 256Mi
   commands:
-  - n=0; while [ "$n" -lt 60 ] && [ ! docker stats --no-stream ]; do n=$(( n + 1 )); sleep 1; done
-  - docker build -t sonar-scanner:$${DRONE_COMMIT_SHA} .
+  - git config --global --add safe.directory '*'
+  - ls -lrt
+  - git status
+  - echo "# current version - $(cat .semver)"
+  - awk -F. '/[0-9]+\./{$NF++;print}' OFS=. ORS= .semver | tee .semver-new >/dev/null
+  - rm -f .semver
+  - mv .semver-new .semver
+  - echo "# new build - $(cat .semver)"
+  - git commit -am"[CI SKIP] - Increment build version"
   when:
     event:
-    - push
-    - tag
+      include:
+      - push
+      - pull_request
+      exclude:
+      - promote
 
-- name: scan_image
-  pull: if-not-exists
-  image: 340268328991.dkr.ecr.eu-west-2.amazonaws.com/acp/anchore-submission:latest
-  environment:
-    IMAGE_NAME: sonar-scanner:${DRONE_COMMIT_SHA}
+- name: build
+  pull: Always
+  image: 340268328991.dkr.ecr.eu-west-2.amazonaws.com/acp/dind
+  resources:
+    limits:
+      cpu: 1000
+      memory: 1024Mi
+  commands:
+  # wait for docker service to be up before running docker build
+  - /usr/local/bin/wait
+  - docker build --build-arg SONAR_SCANNER_VER=$$(cat .semver | cut -d "-" -f -1) --build-arg SONAR_SCANNER_SHA512=$${SONAR_SCANNER_SHA512} -t "$${OCI_REGISTRY}/$${OCI_IMAGE_REPO}:$$(cat .semver)" . --no-cache
+  - docker tag "$${OCI_REGISTRY}/$${OCI_IMAGE_REPO}:$$(cat .semver)" "$${OCI_REGISTRY}/$${OCI_IMAGE_REPO}:${DRONE_COMMIT_SHA}"
   when:
     event:
-    - push
+      include:
+      - push
+      - pull_request
+      exclude:
+      - promote
 
-- name: image_sha_to_quay
-  pull: if-not-exists
-  image: plugins/docker
-  settings: 
-    registry: quay.io
-    repo: quay.io/ukhomeofficedigital/sonar-scanner
-    tags: ${DRONE_COMMIT_SHA}
+- name: Promote tag to Sonar-Scanner Version and Latest (Quay)
+  pull: Always
+  image: 340268328991.dkr.ecr.eu-west-2.amazonaws.com/acp/dind
+  resources:
+    limits:
+      cpu: 100
+      memory: 256Mi
+  commands:
+  # wait for docker service to be up before running docker build
+  - /usr/local/bin/wait
+  - docker login -u="$${OCI_REPO_USERNAME}" -p=$${OCI_REPO_TOKEN} $${OCI_REGISTRY}
+  - docker pull $${OCI_REGISTRY}/$${OCI_IMAGE_REPO}:$$(cat .semver)
+  - docker tag $${OCI_REGISTRY}/$${OCI_IMAGE_REPO}:$$(cat .semver) $${OCI_REGISTRY}/$${OCI_IMAGE_REPO}:$$(cat .semver | cut -d "-" -f -1)
+  - docker tag $${OCI_REGISTRY}/$${OCI_IMAGE_REPO}:$$(cat .semver) $${OCI_REGISTRY}/$${OCI_IMAGE_REPO}:latest
+  - docker push $${OCI_REGISTRY}/$${OCI_IMAGE_REPO} --all-tags
   environment:
-    DOCKER_PASSWORD:
+    OCI_REPO_TOKEN:
       from_secret: DOCKER_SECRET_2
-    DOCKER_USERNAME: ukhomeofficedigital+sonar_scanner
+  when:
+    ref:
+    - refs/tags/**
+    event:
+    - promote
+
+- name: scan-image
+  pull: Always
+  image: 340268328991.dkr.ecr.eu-west-2.amazonaws.com/acp/trivy/client:latest
+  resources:
+    limits:
+      cpu: 1000
+      memory: 1024Mi
+  environment:
+    IMAGE_NAME: quay.io/ukhomeofficedigital/sonar-scanner:${DRONE_COMMIT_SHA}
+    IGNORE_UNFIXED: "true"
   when:
     event:
+    - pull_request
     - push
 
-- name: image_latest_to_quay
-  pull: if-not-exists
-  image: plugins/docker
-  settings: 
-    registry: quay.io
-    repo: quay.io/ukhomeofficedigital/sonar-scanner
-    tags: latest
+- name: Push image tag to quay
+  pull: Always
+  image: 340268328991.dkr.ecr.eu-west-2.amazonaws.com/acp/dind
+  resources:
+    limits:
+      cpu: 100
+      memory: 256Mi
+  commands:
+  - docker login -u="$${OCI_REPO_USERNAME}" -p=$${OCI_REPO_TOKEN} $${OCI_REGISTRY}
+  - docker push $${OCI_REGISTRY}/$${OCI_IMAGE_REPO} --all-tags
   environment:
-    DOCKER_PASSWORD:
+    OCI_REPO_TOKEN:
       from_secret: DOCKER_SECRET_2
-    DOCKER_USERNAME: ukhomeofficedigital+sonar_scanner
   when:
     branch:
-    - master
+    - main
+    event:
+      include:
+      - push
+      exclude:
+      - promote
+
+- name: Push Semver and Tag Repo - force
+  pull: Always
+  image: 340268328991.dkr.ecr.eu-west-2.amazonaws.com/acp/acp-ci-tools
+  resources:
+    limits:
+      cpu: 100
+      memory: 256Mi
+  commands:
+  - git branch --set-upstream-to origin/${DRONE_COMMIT_BRANCH} 
+  - git push --force
+  - git tag -a $(cat .semver) -m "[CI SKIP] - new tag - $(cat .semver)"
+  - git push --force origin $(cat .semver)
+  when:
+    branch:
+    - main
     event:
     - push
-
-- name: image_tag_to_quay
-  pull: if-not-exists
-  image: plugins/docker
-  settings: 
-    registry: quay.io
-    repo: quay.io/ukhomeofficedigital/sonar-scanner
-    tags: ${DRONE_TAG}
-  environment:
-    DOCKER_PASSWORD:
-      from_secret: DOCKER_SECRET_2
-    DOCKER_USERNAME: ukhomeofficedigital+sonar_scanner
-  when:
-    event:
-    - tag
 
 services:
 - name: docker
   image: 340268328991.dkr.ecr.eu-west-2.amazonaws.com/acp/dind
-
-- name: anchore-submission-server
-  image: 340268328991.dkr.ecr.eu-west-2.amazonaws.com/acp/anchore-submission:latest
-  pull: always
-  commands:
-    - /run.sh server
-
-...
+  resources:
+    limits:
+      cpu: 1000
+      memory: 1024Mi
