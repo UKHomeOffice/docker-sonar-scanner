@@ -3,6 +3,11 @@ kind: pipeline
 name: default
 type: kubernetes
 
+trigger:
+  event:
+    exclude:
+    - pull_request
+
 platform:
   os: linux
   arch: amd64
@@ -12,7 +17,7 @@ steps:
   pull: if-not-exists
   image: 340268328991.dkr.ecr.eu-west-2.amazonaws.com/acp/dind
   commands:
-  - n=0; while [ "$n" -lt 60 ] && [ ! docker stats --no-stream ]; do n=$(( n + 1 )); sleep 1; done
+  - /usr/local/bin/wait
   - docker build -t sonar-scanner:$${DRONE_COMMIT_SHA} .
   when:
     event:
@@ -20,13 +25,19 @@ steps:
     - tag
 
 - name: scan_image
-  pull: if-not-exists
-  image: 340268328991.dkr.ecr.eu-west-2.amazonaws.com/acp/anchore-submission:latest
+  image: 340268328991.dkr.ecr.eu-west-2.amazonaws.com/acp/trivy/client:latest
+  pull: always
   environment:
     IMAGE_NAME: sonar-scanner:${DRONE_COMMIT_SHA}
+    LOCAL_IMAGE: true
+    ALLOW_CVE_LIST_FILE: whitelist
+    SEVERITY: HIGH,CRITICAL
   when:
     event:
     - push
+    - tag
+  depends_on:
+    - build_docker_image
 
 - name: image_sha_to_quay
   pull: if-not-exists
@@ -42,23 +53,8 @@ steps:
   when:
     event:
     - push
-
-- name: image_latest_to_quay
-  pull: if-not-exists
-  image: plugins/docker
-  settings: 
-    registry: quay.io
-    repo: quay.io/ukhomeofficedigital/sonar-scanner
-    tags: latest
-  environment:
-    DOCKER_PASSWORD:
-      from_secret: DOCKER_SECRET_2
-    DOCKER_USERNAME: ukhomeofficedigital+sonar_scanner
-  when:
-    branch:
-    - master
-    event:
-    - push
+  depends_on:
+    - scan_image
 
 - name: image_tag_to_quay
   pull: if-not-exists
@@ -74,15 +70,11 @@ steps:
   when:
     event:
     - tag
+  depends_on:
+    - scan_image
 
 services:
 - name: docker
   image: 340268328991.dkr.ecr.eu-west-2.amazonaws.com/acp/dind
-
-- name: anchore-submission-server
-  image: 340268328991.dkr.ecr.eu-west-2.amazonaws.com/acp/anchore-submission:latest
-  pull: always
-  commands:
-    - /run.sh server
 
 ...
